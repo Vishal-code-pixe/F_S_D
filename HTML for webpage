@@ -1,0 +1,77 @@
+from flask import Flask, jsonify, render_template_string
+from twitter_scraper import TwitterScraper
+from database_handler import DatabaseHandler
+import json
+
+app = Flask(__name__)
+
+# HTML template
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twitter Trends Scraper</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 20px 0; padding: 10px; border: 1px solid #ddd; }
+        .button { 
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #1DA1F2;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Twitter Trends Scraper</h1>
+    <a href="/scrape" class="button">Click here to run the script</a>
+    
+    {% if result %}
+    <div class="result">
+        <h2>These are the most happening topics as on {{ result.timestamp }}:</h2>
+        <ul>
+            <li>{{ result.nameoftrend1 }}</li>
+            <li>{{ result.nameoftrend2 }}</li>
+            <li>{{ result.nameoftrend3 }}</li>
+            <li>{{ result.nameoftrend4 }}</li>
+            <li>{{ result.nameoftrend5 }}</li>
+        </ul>
+        <p>The IP address used for this query was {{ result.ip_address }}</p>
+        <h3>JSON extract from MongoDB:</h3>
+        <pre>{{ json_result }}</pre>
+    </div>
+    {% endif %}
+</body>
+</html>
+"""
+
+@app.route('/')
+def home():
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/scrape')
+def scrape():
+    try:
+        # Initialize scraper with your Twitter credentials
+        scraper = TwitterScraper(username="VishallVJ", password="Vishal@143")
+        trends_data = scraper.get_trending_topics()
+        
+        # Save to database
+        db_handler = DatabaseHandler()
+        db_handler.save_trends(trends_data)
+        
+        # Format JSON for display
+        json_result = json.dumps(trends_data, default=str, indent=2)
+        
+        return render_template_string(
+            HTML_TEMPLATE,
+            result=trends_data,
+            json_result=json_result
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
